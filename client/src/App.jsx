@@ -94,7 +94,7 @@ function App() {
             <Card title="Tip of the Day" description="Discover helpful life tips" feature="tip-of-the-day" colorClass="tip" />
           </div>
 
-          {/* Dynamic Content Display Container for Cards View */}
+         
           <div className="content-display-container">
             <div className="content-display-card">
               <div className="textarea-container">
