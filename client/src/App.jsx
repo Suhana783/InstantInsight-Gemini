@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import './App.css'; 
-import { AskView } from './AskView.jsx'; // <-- IMPORT THE NEWLY CREATED FILE HERE
+import { AskView } from './AskView.jsx'; // <-- IMPORT THE ASK VIEW COMPONENT
 
 function App() {
   const STATIC_SUBTITLE = "Your personal AI assistant for jokes, motivation, and daily tips";
   
-  // --- STATE ---
+  // --- STATE FOR MAIN CARD VIEW ---
   const [content, setContent] = useState(''); 
   const [isLoading, setIsLoading] = useState(false);
   const [activeFeature, setActiveFeature] = useState(null); 
-  const [currentView, setCurrentView] = useState('cards');
+  const [currentView, setCurrentView] = useState('cards'); // 'cards' or 'ask'
 
-  // STATE for the Ask View (Passed to AskView.jsx)
+  // --- STATE FOR ASK VIEW ---
   const [askQuestion, setAskQuestion] = useState('');
   const [isAskLoading, setIsAskLoading] = useState(false);
   const [askResponse, setAskResponse] = useState(''); 
@@ -26,9 +26,20 @@ function App() {
     try {
       const response = await fetch(`/api/${feature}`, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
       const data = await response.json();
-      if (response.ok && data.content) { setContent(data.content); } else { setContent(`Error: ${data.error || 'Failed to fetch content.'}`); }
+      
+      if (response.ok && data.content) { 
+          // SUCCESS: Display content
+          setContent(data.content); 
+      } else if (response.status === 429) { 
+          // FIX: Handle 429 Quota Exceeded gracefully from server.js
+          setContent(`Quota Error: ${data.error}`);
+      } else { 
+          // Handle other server-side errors (500, etc.)
+          setContent(`Error: ${data.error || 'Failed to fetch content.'}`); 
+      }
     } catch (error) {
       console.error('Fetch error:', error);
+      // This is for a true network error (server is offline/unreachable)
       setContent('Network Error: Could not reach the Express server.');
     } finally {
       setIsLoading(false); 
@@ -55,19 +66,25 @@ function App() {
         const finalResponse = data.answer || data.content;
 
         if (response.ok && finalResponse) {
+            // SUCCESS: Display response
             setAskResponse(finalResponse);
+        } else if (response.status === 429) { 
+            // FIX: Handle 429 Quota Exceeded gracefully from server.js
+            setAskResponse(`Quota Error: ${data.error}`);
         } else {
+            // Handle other server-side errors
             setAskResponse(`Error: ${data.error || 'Unknown server error.'}`);
         }
     } catch (error) {
         console.error('Ask Fetch error:', error);
+        // This is for a true network error
         setAskResponse('Network Error: Could not process request.');
     } finally {
         setIsAskLoading(false);
     }
   };
     
-  // Component for the Card Layout Page (remains nested, only AskView moved)
+  // Component for the Card Layout Page (nested component)
   const CardsView = () => {
       // Card component (remains nested inside CardsView)
       const Card = ({ title, description, feature, colorClass }) => (
@@ -119,7 +136,7 @@ function App() {
   return (
     <>
       <div className="container">
-        {/* Conditional Rendering: Now uses the imported AskView component */}
+        {/* Conditional Rendering: Switch between Card View and Ask View */}
         {currentView === 'cards' ? 
           <CardsView /> 
           : 
@@ -140,6 +157,7 @@ function App() {
         className="fab-button" 
         onClick={() => {
             setCurrentView(currentView === 'cards' ? 'ask' : 'cards');
+            // Clear the other view's content when switching
             if (currentView === 'ask') setAskResponse('');
             else setContent('');
         }}
