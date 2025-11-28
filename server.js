@@ -5,21 +5,55 @@ const { GoogleGenAI } = require('@google/genai');
 
 app.use(express.json());
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_KEYS = [
+    process.env.GEMINI_KEY_0,
+    process.env.GEMINI_KEY_1,
+    process.env.GEMINI_KEY_2,
+   
+].filter(key => key);
+
+if (GEMINI_KEYS.length === 0) {
+    console.error("CRITICAL ERROR: No Gemini API keys found in environment variables (GEMINI_KEY_0, GEMINI_KEY_1, etc.).");
+}
+
+const generateContentWithFailover = async (prompt, modelName = 'gemini-2.5-flash') => {
+    let lastError = null;
+    
+    for (let i = 0; i < GEMINI_KEYS.length; i++) {
+        const currentKey = GEMINI_KEYS[i];
+        
+        try {
+            const ai = new GoogleGenAI({ apiKey: currentKey });
+            
+            const response = await ai.models.generateContent({
+                model: modelName,
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            });
+            
+            return response.text;
+            
+        } catch (error) {
+            lastError = error;
+
+            if (error.status === 429) {
+                console.error(`Attempt with Key ${i} failed (429 Quota Exceeded). Trying next key.`);
+                continue;
+            }
+            
+            console.error(`Attempt with Key ${i} failed. Status: ${error.status || 'Unknown'}. Stopping rotation.`);
+            break;
+        }
+    }
+    
+    if (lastError && lastError.status === 429) {
+        throw { status: 429, message: 'All API keys are currently exhausted. Please try again later.' };
+    }
+    
+    throw { status: lastError ? lastError.status || 500 : 500, message: 'Failed to communicate with the AI model.' };
+};
 
 const generateContent = async (prompt) => {
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        });
-        return response.text;
-    } catch (error) {
-        if (error.status === 429) {
-            throw { status: 429, message: 'API Quota Exceeded. Please try again later.' };
-        }
-        throw { status: error.status || 500, message: 'Failed to communicate with the AI model.' };
-    }
+    return generateContentWithFailover(prompt, 'gemini-2.5-flash');
 };
 
 app.post('/api/ask', async (req, res) => {
@@ -30,21 +64,14 @@ app.post('/api/ask', async (req, res) => {
     }
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: userQuestion }] }],
-        });
+        const responseText = await generateContentWithFailover(userQuestion, 'gemini-2.5-flash');
 
         res.json({ 
-            answer: response.text 
+            answer: responseText 
         });
 
     } catch (error) {
-        console.error(error);
-        if (error.status === 429) {
-            return res.status(429).json({ error: 'API Quota Exceeded. Please try again later.' });
-        }
-        res.status(500).json({ error: 'Failed to communicate with the Gemini API.' });
+        res.status(error.status || 500).json({ error: error.message });
     }
 });
 
@@ -77,6 +104,7 @@ app.get('/api/tip-of-the-day', async (req, res) => {
         res.status(error.status || 500).json({ error: error.message });
     }
 });
+
 
 const PORT = 3000;
 app.listen(PORT, () => {

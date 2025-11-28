@@ -113,7 +113,7 @@ function App() {
 
          
           <div className="content-display-container">
-            <div className="content-display-card">
+            <div className="content-display-card">9
               <div className="textarea-container">
                 <textarea
                   className="content-textarea"
