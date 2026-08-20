@@ -147,7 +147,6 @@ function App() {
             isAskLoading={isAskLoading}
             askResponse={askResponse}
             setAskResponse={setAskResponse}
-            setCurrentView={setCurrentView}
           />
         }
       </div>

@@ -7,8 +7,7 @@ export function AskView({
     handleAskSubmit,
     isAskLoading,
     askResponse,
-    setAskResponse,
-    setCurrentView
+  setAskResponse
 }) {
     return (
       <div className="ask-view-container">
