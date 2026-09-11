@@ -11,7 +11,7 @@ export function AskView({
 }) {
     return (
       <div className="ask-view-container">
-        {/* Heading moved outside the ask-box with emoji */}
+       
         <h1 className="ask-heading">💬 Ask a Question to Gemini</h1>
 
         <div className="ask-box">
@@ -25,7 +25,7 @@ export function AskView({
               disabled={isAskLoading}
             />
             <div className="modal-actions">
-              {/* Button now clears input only */}
+            
               <button type="button" onClick={() => setAskQuestion('')} className="modal-cancel-btn" disabled={isAskLoading}>
                 Clear Input
               </button>
